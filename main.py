@@ -64,12 +64,8 @@ class FearClassifier:
         # I could see that leading to a lot misinterpretations
 
         for line in lines:
-            fear = False
-            features = self.find_features(line)
-            for (_, genre) in features.items():
-                if genre == 'fear':
-                    fear = True
-            if fear:
+            genre = self.classifier.classify(self.find_features(line))
+            if genre == 'fear':
                 print('FEAR: ' + line)
             else:
                 print('NEUTRAL: ' + line)
