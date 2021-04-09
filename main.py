@@ -1,7 +1,13 @@
 import nltk
 import random
 from nltk.stem import PorterStemmer
-
+from nltk.tag.perceptron import PerceptronTagger
+import librosa
+import numpy as np
+import matplotlib.pyplot as plt
+#import SpeechRecognition
+import speech_recognition as sr
+#https://realpython.com/python-speech-recognition/
 
 class FearClassifier:
     # for later development: if we save the classifier to a file with pickle,
@@ -43,6 +49,49 @@ class FearClassifier:
                 features[w.lower()] = 'neutral'
         return features
 
+    def audio(self, file: str):
+
+        data, sr = librosa.core.load(file, sr=22050, mono=True, offset=1.2, duration=None)
+        # data : type = array = audio time series
+        print(data.shape)
+        print("sampling rate: ", sr)
+
+        time = np.arange(0, len(data)) / sr
+        fig, ax = plt.subplots()
+        ax.plot(time, data)
+        ax.set(xlabel='Time(s)', ylabel='sound amplitude')
+        plt.show()
+
+    def speech_to_text(self, file: str):
+        r = sr.Recognizer()
+        # r.recognize_google() #API from Google
+        audio = sr.AudioFile(file)
+        print(type(audio))
+        # need to go from audioFile to audioData
+        print(r.recognize_google(audio))
+
+    def find_POS(self, lines: list) -> list:  # I think we can use POS to see trends in neutral vs fear sentences, I + verb words typically in fear
+        # using lines from sentence examples, do pos before removing words
+        tokens = []
+        tagger = PerceptronTagger()
+        tagger.train([[('today', 'NN'), ('is', 'VBZ'), ('good', 'JJ'), ('day', 'NN')],
+                      [('yes', 'NNS'), ('it', 'PRP'), ('beautiful', 'JJ')]])
+        for sent in lines:
+            tokens.append(nltk.word_tokenize(sent))
+        for word in tokens:
+            words = list(word)
+            tagger.tag(words)
+
+    def remove_stop_words(self):  # clears up space in database and improves processing time
+
+        stopwords = set(nltk.corpus.stopwords.words('english'))
+        stopwords.remove("the")
+        stopwords.remove("a")
+        stopwords.remove("an")
+        stopwords.remove("in")
+        stopwords.remove("but")
+        stopwords.remove("by")
+
     def train(self, fear_lines: list, neutral_lines: list):
 
         documents = ([(line, 'fear') for line in fear_lines] + [(line, 'neutral') for line in neutral_lines])
@@ -79,3 +128,9 @@ if __name__ == '__main__':
     fc = FearClassifier()
     fc.train(fear, neutral)
     fc.meter(test)
+    fc.find_POS(test)
+    print("Pain audio example: ")
+    fc.audio('Fear Audio Files/OAF_pain_fear.wav')
+    print("Neutral audio example: ")
+    fc.audio('Neutral Audio Files/OAF_pain_neutral.wav')
+    # fc.speech_to_text('Fear Audio Files/OAF_pain_fear.wav')
