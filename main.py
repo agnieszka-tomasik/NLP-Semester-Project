@@ -1,5 +1,6 @@
 import nltk
 import random
+import pandas as pd
 from nltk.stem import PorterStemmer
 from nltk.tag.perceptron import PerceptronTagger
 import librosa
@@ -56,17 +57,32 @@ class FearClassifier:
         print(data.shape)
         print("sampling rate: ", sr)
 
+        # amplitude
         time = np.arange(0, len(data)) / sr
         fig, ax = plt.subplots()
         ax.plot(time, data)
         ax.set(xlabel='Time(s)', ylabel='sound amplitude')
         plt.show()
 
+        #spectral centroid of sound wave (inflection point)
+        # https://librosa.org/doc/0.8.0/generated/librosa.feature.spectral_centroid.html
+        cent = librosa.feature.spectral_centroid(y=data, sr=sr)
+        S, phase = librosa.magphase(librosa.stft(y=data))
+        times = librosa.times_like(cent)
+        fig, ax = plt.subplots()
+        #librosa.display.specshow(librosa.amplitude_to_db(S, ref=np.max),
+                                # y_axis='log', x_axis='time', ax=ax)
+        ax.plot(times, cent.T, label='Spectral centroid', color='w')
+        ax.legend(loc='upper right')
+        ax.set(title='log Power spectrogram')
+        return sr
+
     def speech_to_text(self, file: str):
         r = sr.Recognizer()
         # r.recognize_google() #API from Google
         audio = sr.AudioFile(file)
-        print(type(audio))
+        with audio as source:
+            audio = r.record(source)
         # need to go from audioFile to audioData
         print(r.recognize_google(audio))
 
@@ -120,17 +136,100 @@ class FearClassifier:
                 print('NEUTRAL: ' + line)
 
 
+    """
+    Function compares amplitudes between an audio file that expresses fear versus a neutral audio file.
+    Creates an average of amplitude values, if average of the fear amplitude is lower than the average of the neutral amplitude 
+    than we can conclude that lower amplitude is a good indicator of fear.
+    """
+
+    def compare_amplitudes(self, files1, files2):
+
+        list_amplitudes_fear = []
+        list_amplitudes_neutral = []
+        fear_total = 0
+        neutral_total = 0
+
+        # store amplitude values in a list
+        for file in files1:
+            list_amplitudes_fear.append(self.audio(file))
+        for file in files2:
+            list_amplitudes_neutral.append(self.audio(file))
+
+        # get total amplitudes
+        for amplitude in list_amplitudes_fear:
+            fear_total += fear_total + amplitude
+
+        for amplitude in list_amplitudes_neutral:
+            neutral_total += neutral_total + amplitude
+
+        # get averages
+        fear_avg = fear_total / len(list_amplitudes_fear)
+        neutral_avg = neutral_total/ len(list_amplitudes_neutral)
+
+        # tabulate data via Panda and print to visualize table
+        # Label = Amplitudes/fear, Amplitudes/Neutral, total_Amplitudes/fear, total_ampltidues/neutral, avg_amplitudes/fear, avg_amplitudes/neutral
+        df_fear = pd.DataFrame(list_amplitudes_fear, columns=['Amplitudes'])
+        df_neutral = pd.DataFrame(list_amplitudes_neutral, columns=['Amplitudes'])
+        df = pd.concat(df_fear, df_neutral)
+        print(df)
+
+        # compare results
+        if fear_avg < neutral_avg:
+            print("Fear is proven to have a smaller amplitude based on the averages")
+            return True
+        else:
+            print("Wrong")
+            return False
+
+
+    def compare_inflection(self, files1, files2):
+
+        # get averages
+        # tabulate data via Panda and print to visualize table
+        return True
+
+    def compare_pitch(self, files1, files2):
+        # get averages
+        # tabulate data via Panda and print to visualize table
+        return True
+
+
+    """
+    Analyze the context of words to determine if they convey fear (use POS tags here perhaps a tree)?
+    """
+    def word_context(self):
+
+        return "context"
+
+
+    """
+    Check if the lemmatization of the text provides evidence of fear
+    """
+
+    def lemmatization(self):
+
+        return None
+
+    # need to compare audio results and text results, unsure of how to do this currently, use classifier on both?
+    def audio_vs_text(self):
+        return None
+
+
 if __name__ == '__main__':
     fear = open('fear_example.txt', 'r').read().splitlines()
     neutral = open('neutral_example.txt', 'r').read().splitlines()
     test = open('test.txt', 'r').read().splitlines()
+    #need to create list of files to be accessed below in 221-222
+    fear_audio_files = []
+    neutral_audio_files = []
 
     fc = FearClassifier()
     fc.train(fear, neutral)
     fc.meter(test)
     fc.find_POS(test)
-    print("Pain audio example: ")
+    print("Fear audio example: ")
     fc.audio('Fear Audio Files/OAF_pain_fear.wav')
     print("Neutral audio example: ")
     fc.audio('Neutral Audio Files/OAF_pain_neutral.wav')
-    # fc.speech_to_text('Fear Audio Files/OAF_pain_fear.wav')
+    fc.speech_to_text('Fear Audio Files/OAF_pain_fear.wav')
+    fc.compare_amplitudes(fear_audio_files, neutral_audio_files)
