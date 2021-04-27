@@ -4,7 +4,9 @@ import pandas as pd
 from nltk.stem import PorterStemmer
 from nltk.tag.perceptron import PerceptronTagger
 import librosa
+import librosa.display
 import numpy as np
+import re
 import matplotlib.pyplot as plt
 #import SpeechRecognition
 import speech_recognition as sr
@@ -50,32 +52,75 @@ class FearClassifier:
                 features[w.lower()] = 'neutral'
         return features
 
-    def audio(self, file: str):
+    def amp_audio(self, file: str):
 
         data, sr = librosa.core.load(file, sr=22050, mono=True, offset=1.2, duration=None)
         # data : type = array = audio time series
-        print(data.shape)
-        print("sampling rate: ", sr)
+        amplitude = str(data.shape)
 
-        # amplitude
+        print("Amplitude: ", amplitude.replace('(', '').replace(',', '').replace(')', ''))
+        final_amp = amplitude.replace('(', '').replace(',', '').replace(')', '')
+        print("Sampling rate: ", sr)
+
+        # Sound amplitude plot
         time = np.arange(0, len(data)) / sr
         fig, ax = plt.subplots()
         ax.plot(time, data)
         ax.set(xlabel='Time(s)', ylabel='sound amplitude')
         plt.show()
 
-        #spectral centroid of sound wave (inflection point)
+        return final_amp
+
+    def freq_audio(self, file):
+
+        data, sr = librosa.core.load(file, sr=22050, mono=True, offset=1.2, duration=None)
+        #spectral centroid of sound wave (inflection point) - frequency
+        # The spectral centroid is commonly associated with the measure of the brightness of a sound.
         # https://librosa.org/doc/0.8.0/generated/librosa.feature.spectral_centroid.html
-        cent = librosa.feature.spectral_centroid(y=data, sr=sr)
+        FRAME_SIZE = 1024
+        HOP_LENGTH = 512
+
+        cent = librosa.feature.spectral_centroid(y=data, sr=sr, n_fft=FRAME_SIZE, hop_length=HOP_LENGTH)[0]
+        sc = str(cent.shape)
+        final_sc = sc.replace('(', '').replace(',', '').replace(')', '')
+        print("Spectral centroid: ", final_sc)
+
         S, phase = librosa.magphase(librosa.stft(y=data))
         times = librosa.times_like(cent)
         fig, ax = plt.subplots()
-        #librosa.display.specshow(librosa.amplitude_to_db(S, ref=np.max),
-                                # y_axis='log', x_axis='time', ax=ax)
+        librosa.display.specshow(librosa.amplitude_to_db(S, ref=np.max), y_axis='log', x_axis='time', ax=ax)
         ax.plot(times, cent.T, label='Spectral centroid', color='w')
         ax.legend(loc='upper right')
         ax.set(title='log Power spectrogram')
-        return sr
+        plt.show()
+
+        return final_sc
+
+    def pitch_audio(self, file):
+
+        data, sr = librosa.core.load(file, sr=22050, mono=True, offset=1.2, duration=None)
+        pitches, magnitudes = librosa.piptrack(y=data, sr=sr, fmin=5, fmax=1600)
+        pitch_ = str(pitches.shape)
+        # since pitch_ is (frequency, time) use regex to just get string of frequency
+        regex_pitch = re.sub(', [0-9]', '', pitch_)
+        """
+        ``pitches[f, t]`` contains instantaneous frequency at bin
+        ``f``, time ``t``
+        ``magnitudes[f, t]`` contains the corresponding magnitudes.
+        Both ``pitches`` and ``magnitudes`` take value 0 at bins
+        of non-maximal magnitude.
+        """
+        final_pitch = regex_pitch.replace('(', '').replace(',', '').replace(')', '')
+
+        # Sound amplitude plot
+        time = np.arange(0, len(data)) / sr
+        fig, ax = plt.subplots()
+        ax.plot(time, data)
+        ax.set(xlabel='Time(s)', ylabel='sound pitch')
+        plt.show()
+
+        return final_pitch
+
 
     def speech_to_text(self, file: str):
         r = sr.Recognizer()
@@ -151,9 +196,9 @@ class FearClassifier:
 
         # store amplitude values in a list
         for file in files1:
-            list_amplitudes_fear.append(self.audio(file))
+            list_amplitudes_fear.append(int(self.amp_audio(file)))
         for file in files2:
-            list_amplitudes_neutral.append(self.audio(file))
+            list_amplitudes_neutral.append(int(self.amp_audio(file)))
 
         # get total amplitudes
         for amplitude in list_amplitudes_fear:
@@ -166,16 +211,20 @@ class FearClassifier:
         fear_avg = fear_total / len(list_amplitudes_fear)
         neutral_avg = neutral_total/ len(list_amplitudes_neutral)
 
+
         # tabulate data via Panda and print to visualize table
-        # Label = Amplitudes/fear, Amplitudes/Neutral, total_Amplitudes/fear, total_ampltidues/neutral, avg_amplitudes/fear, avg_amplitudes/neutral
-        df_fear = pd.DataFrame(list_amplitudes_fear, columns=['Amplitudes'])
-        df_neutral = pd.DataFrame(list_amplitudes_neutral, columns=['Amplitudes'])
-        df = pd.concat(df_fear, df_neutral)
+        df_fear = pd.DataFrame(list_amplitudes_fear, columns=['Fear'], index=['Amplitude 1', 'Amplitude 2'])
+        df_neutral = pd.DataFrame(list_amplitudes_neutral, columns=['Neutral'], index=['Amplitude 1', 'Amplitude 2'])
+        df = pd.concat([df_fear, df_neutral], axis=1)
         print(df)
+
+        print("Fear Avg Amplitude: ", fear_avg)
+        print("Neutral Avg Amplitude: ", neutral_avg)
+        print("")
 
         # compare results
         if fear_avg < neutral_avg:
-            print("Fear is proven to have a smaller amplitude based on the averages")
+            print("Fear is proven to have a smaller amplitude based on the averages as fear:", fear_avg, "< neutral:", neutral_avg)
             return True
         else:
             print("Wrong")
@@ -184,14 +233,90 @@ class FearClassifier:
 
     def compare_inflection(self, files1, files2):
 
+        list_freq_fear = []
+        list_freq_neutral = []
+        fear_total = 0
+        neutral_total = 0
+
+        # store freq values in a list
+        for file in files1:
+            list_freq_fear.append(int(self.freq_audio(file)))
+        for file in files2:
+            list_freq_neutral.append(int(self.freq_audio(file)))
+
+        # get total freq
+        for freq in list_freq_fear:
+            fear_total += fear_total + freq
+
+        for freq in list_freq_neutral:
+            neutral_total += neutral_total + freq
+
         # get averages
+        fear_avg = fear_total / len(list_freq_fear)
+        neutral_avg = neutral_total/ len(list_freq_neutral)
+
         # tabulate data via Panda and print to visualize table
-        return True
+        df_fear = pd.DataFrame(list_freq_fear, columns=['Fear'], index=['Freq 1', 'Freq 2'])
+        df_neutral = pd.DataFrame(list_freq_neutral, columns=['Neutral'], index=['Freq 1', 'Freq 2'])
+        df = pd.concat([df_fear, df_neutral], axis=1)
+        print(df)
+
+        print("Fear Avg Freq: ", fear_avg)
+        print("Neutral Avg Freq: ", neutral_avg)
+        print("")
+
+        # compare results
+        if fear_avg < neutral_avg:
+            print("Fear is proven to have a smaller frequency based on the averages as fear:", fear_avg, "< neutral:", neutral_avg, "\n")
+            return True
+        else:
+            print("Wrong")
+            return False
 
     def compare_pitch(self, files1, files2):
+
+        list_pitch_fear = []
+        list_pitch_neutral = []
+        fear_total = 0
+        neutral_total = 0
+
+        # store amplitude values in a list
+        for file in files1:
+            print("pitch:", self.pitch_audio(file))
+            list_pitch_fear.append(int(self.pitch_audio(file)))
+        for file in files2:
+            list_pitch_neutral.append(int(self.pitch_audio(file)))
+
+        # get total amplitudes
+        for freq in list_pitch_fear:
+            fear_total += fear_total + freq
+
+        for freq in list_pitch_neutral:
+            neutral_total += neutral_total + freq
+
         # get averages
+        fear_avg = fear_total / len(list_pitch_fear)
+        neutral_avg = neutral_total / len(list_pitch_neutral)
+
         # tabulate data via Panda and print to visualize table
-        return True
+        df_fear = pd.DataFrame(list_pitch_fear, columns=['Fear'], index=['Pitch 1', 'Pitch 2'])
+        df_neutral = pd.DataFrame(list_pitch_neutral, columns=['Neutral'], index=['Pitch 1', 'Pitch 2'])
+        df = pd.concat([df_fear, df_neutral], axis=1)
+        print(df)
+
+        print("Fear Avg Pitch: ", fear_avg)
+        print("Neutral Avg Pitch: ", neutral_avg)
+        print("")
+
+        # compare results
+        if fear_avg > neutral_avg:
+            print("Fear is proven to have a larger pitch based on the averages as fear:", fear_avg, "> neutral:",
+                  neutral_avg, "\n")
+            print("Pitch is based off the instantenous frequency")
+            return True
+        else:
+            print("Wrong")
+            return False
 
 
     """
@@ -214,22 +339,25 @@ class FearClassifier:
     def audio_vs_text(self):
         return None
 
+    def evaluate(self):
+        return None
 
 if __name__ == '__main__':
     fear = open('fear_example.txt', 'r').read().splitlines()
     neutral = open('neutral_example.txt', 'r').read().splitlines()
     test = open('test.txt', 'r').read().splitlines()
-    #need to create list of files to be accessed below in 221-222
-    fear_audio_files = []
-    neutral_audio_files = []
+    fear_audio_files = ["Fear Audio Files/OAF_pain_fear.wav", "Fear Audio Files/OAF_witch_fear.wav"]
+    neutral_audio_files = ["Neutral Audio Files/OAF_pain_neutral.wav", "Neutral Audio Files/OAF_witch_neutral.wav"]
 
     fc = FearClassifier()
     fc.train(fear, neutral)
     fc.meter(test)
     fc.find_POS(test)
     print("Fear audio example: ")
-    fc.audio('Fear Audio Files/OAF_pain_fear.wav')
+    fc.amp_audio('Fear Audio Files/OAF_pain_fear.wav')
     print("Neutral audio example: ")
-    fc.audio('Neutral Audio Files/OAF_pain_neutral.wav')
+    fc.amp_audio('Neutral Audio Files/OAF_pain_neutral.wav')
     fc.speech_to_text('Fear Audio Files/OAF_pain_fear.wav')
     fc.compare_amplitudes(fear_audio_files, neutral_audio_files)
+    fc.compare_inflection(fear_audio_files,neutral_audio_files)
+    fc.compare_pitch(fear_audio_files, neutral_audio_files)
