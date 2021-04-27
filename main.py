@@ -4,6 +4,7 @@ import pandas as pd
 from nltk.stem import PorterStemmer
 from nltk.tag.perceptron import PerceptronTagger
 import librosa
+from afinn import Afinn
 import librosa.display
 import numpy as np
 import re
@@ -13,22 +14,11 @@ import speech_recognition as sr
 #https://realpython.com/python-speech-recognition/
 
 class FearClassifier:
-    # for later development: if we save the classifier to a file with pickle,
-    # we'll be able to reload it and see the trend of performance each time it is trained
-    # since that information won't be lost at the end of the program but rather stored
-    # somewhere
 
     classifier = nltk.NaiveBayesClassifier
     fear_words = []
 
     def __init__(self):
-        # fear.txt will be a file containing all of the popular
-        # words that denote fear that we have compiled and saved
-
-        # NOTE: may be more effective to use stemmer to create
-        # bag of words that word_features will be constructed from
-        # e.g. 'apprehensiveness' will register fear since it's
-        # stem is 'apprehensive', which will be included in word_features
 
         ps = PorterStemmer()
         size = 0
@@ -342,6 +332,17 @@ class FearClassifier:
     def evaluate(self):
         return None
 
+    def sentiment_score(self,file):
+        af = Afinn()
+
+        # compute sentiment scores (polarity) and labels
+        sentiment_scores = [af.score(file)]
+        sentiment_category = ['positive' if score > 0
+                              else 'negative' if score < 0
+                                else 'neutral'
+                                 for score in sentiment_scores]
+        print(sentiment_scores)
+        print(sentiment_category)
 if __name__ == '__main__':
     fear = open('fear_example.txt', 'r').read().splitlines()
     neutral = open('neutral_example.txt', 'r').read().splitlines()
@@ -361,3 +362,5 @@ if __name__ == '__main__':
     fc.compare_amplitudes(fear_audio_files, neutral_audio_files)
     fc.compare_inflection(fear_audio_files,neutral_audio_files)
     fc.compare_pitch(fear_audio_files, neutral_audio_files)
+    fc.sentiment_score("fear text: ",open('fear_example.txt', 'r').read())
+    fc.sentiment_score("neutral text: ", open('neutral_example.txt', 'r').read())
