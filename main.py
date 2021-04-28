@@ -50,9 +50,7 @@ class FearClassifier:
         # data : type = array = audio time series
         amplitude = str(data.shape)
 
-        print("Amplitude: ", amplitude.replace('(', '').replace(',', '').replace(')', ''))
         final_amp = amplitude.replace('(', '').replace(',', '').replace(')', '')
-        print("Sampling rate: ", sr)
 
         # Sound amplitude plot
         time = np.arange(0, len(data)) / sr
@@ -66,16 +64,13 @@ class FearClassifier:
     def freq_audio(self, file):
 
         data, sr = librosa.core.load(file, sr=22050, mono=True, offset=1.2, duration=None)
-        #spectral centroid of sound wave (inflection point) - frequency
-        # The spectral centroid is commonly associated with the measure of the brightness of a sound.
-        # https://librosa.org/doc/0.8.0/generated/librosa.feature.spectral_centroid.html
         FRAME_SIZE = 1024
         HOP_LENGTH = 512
 
         cent = librosa.feature.spectral_centroid(y=data, sr=sr, n_fft=FRAME_SIZE, hop_length=HOP_LENGTH)[0]
         sc = str(cent.shape)
         final_sc = sc.replace('(', '').replace(',', '').replace(')', '')
-        print("Spectral centroid: ", final_sc)
+        #print("Spectral centroid: ", final_sc)
 
         S, phase = librosa.magphase(librosa.stft(y=data))
         times = librosa.times_like(cent)
@@ -95,13 +90,6 @@ class FearClassifier:
         pitch_ = str(pitches.shape)
         # since pitch_ is (frequency, time) use regex to just get string of frequency
         regex_pitch = re.sub(', [0-9]', '', pitch_)
-        """
-        ``pitches[f, t]`` contains instantaneous frequency at bin
-        ``f``, time ``t``
-        ``magnitudes[f, t]`` contains the corresponding magnitudes.
-        Both ``pitches`` and ``magnitudes`` take value 0 at bins
-        of non-maximal magnitude.
-        """
         final_pitch = regex_pitch.replace('(', '').replace(',', '').replace(')', '')
 
         # Sound amplitude plot
@@ -123,6 +111,7 @@ class FearClassifier:
         # need to go from audioFile to audioData
         print(r.recognize_google(audio))
 
+
     def find_POS(self, lines: list) -> list:  # I think we can use POS to see trends in neutral vs fear sentences, I + verb words typically in fear
         # using lines from sentence examples, do pos before removing words
         tokens = []
@@ -135,15 +124,6 @@ class FearClassifier:
             words = list(word)
             tagger.tag(words)
 
-    def remove_stop_words(self):  # clears up space in database and improves processing time
-
-        stopwords = set(nltk.corpus.stopwords.words('english'))
-        stopwords.remove("the")
-        stopwords.remove("a")
-        stopwords.remove("an")
-        stopwords.remove("in")
-        stopwords.remove("but")
-        stopwords.remove("by")
 
     def train(self, fear_lines: list, neutral_lines: list):
 
@@ -208,7 +188,10 @@ class FearClassifier:
         df_fear = pd.DataFrame(list_amplitudes_fear, columns=['Fear'])
         df_neutral = pd.DataFrame(list_amplitudes_neutral, columns=['Neutral'])
         df = pd.concat([df_fear, df_neutral], axis=1)
+        print("Amplitude Analysis")
+        print("------------------")
         print(df)
+        print("")
 
         fvalue, pvalue = stats.f_oneway(df_fear, df_neutral)
         print("ANOVA statistical analysis F-value: ", fvalue)
@@ -220,10 +203,10 @@ class FearClassifier:
 
         # compare results under a 5% significance level
         if fear_avg < neutral_avg:
-            print("Fear is proven to have a smaller amplitude based on the averages as fear:", fear_avg, "< neutral:", neutral_avg)
+            print("Fear is proven to have a smaller amplitude based on the averages as fear(", fear_avg, ") < neutral(", neutral_avg, ")")
             return True
         else:
-            print("Wrong")
+            print("Our hypothesis was wrong")
             return False
 
 
@@ -255,22 +238,25 @@ class FearClassifier:
         df_fear = pd.DataFrame(list_freq_fear, columns=['Fear'])
         df_neutral = pd.DataFrame(list_freq_neutral, columns=['Neutral'])
         df = pd.concat([df_fear, df_neutral], axis=1)
+        print("Inflection Analysis (Frequency)")
+        print("-------------------------------")
         print(df)
+        print("")
 
         fvalue, pvalue = stats.f_oneway(df_fear, df_neutral)
         print("ANOVA statistical analysis F-value: ", fvalue)
         print("ANOVA statistical analysis p-value: ", pvalue)
 
-        print("Fear Avg Freq: ", fear_avg)
-        print("Neutral Avg Freq: ", neutral_avg)
+        print("Fear Avg Frequency: ", fear_avg)
+        print("Neutral Avg Frequency: ", neutral_avg)
         print("")
 
         # compare results under a 5% significance level
         if fear_avg < neutral_avg:
-            print("Fear is proven to have a smaller frequency based on the averages as fear:", fear_avg, "< neutral:", neutral_avg, "\n")
+            print("Fear is proven to have a smaller frequency based on the averages as fear(", fear_avg, ") < neutral(", neutral_avg, ")\n")
             return True
         else:
-            print("Wrong")
+            print("Our hypothesis was wrong")
             return False
 
     def compare_pitch(self, files1, files2):
@@ -282,7 +268,6 @@ class FearClassifier:
 
         # store amplitude values in a list
         for file in files1:
-            print("pitch:", self.pitch_audio(file))
             list_pitch_fear.append(int(self.pitch_audio(file)))
         for file in files2:
             list_pitch_neutral.append(int(self.pitch_audio(file)))
@@ -302,7 +287,10 @@ class FearClassifier:
         df_fear = pd.DataFrame(list_pitch_fear, columns=['Fear'])
         df_neutral = pd.DataFrame(list_pitch_neutral, columns=['Neutral'])
         df = pd.concat([df_fear, df_neutral], axis=1)
+        print("Pitch analysis")
+        print("--------------")
         print(df)
+        print("")
 
         fvalue, pvalue = stats.f_oneway(df_fear, df_neutral)
         print("ANOVA statistical analysis F-value: ", fvalue)
@@ -314,49 +302,36 @@ class FearClassifier:
 
         # compare results under a 5% significance level
         if fear_avg > neutral_avg:
-            print("Fear is proven to have a larger pitch based on the averages as fear:", fear_avg, "> neutral:",
-                  neutral_avg, "\n")
-            print("Pitch is based off the instantenous frequency")
+            print("Fear is proven to have a larger pitch based on the averages as fear(", fear_avg, ") > neutral(",
+                  neutral_avg, ")\n")
             return True
         else:
-            print("Wrong")
+            print("Our hypothesis was wrong")
             return False
 
-
-    """
-    Analyze the context of words to determine if they convey fear (use POS tags here perhaps a tree)?
-    """
-    def word_context(self):
-
-        return "context"
-
-
-    """
-    Check if the lemmatization of the text provides evidence of fear
-    """
-
-    def lemmatization(self):
-
-        return None
-
-    # need to compare audio results and text results, unsure of how to do this currently, use classifier on both?
-    def audio_vs_text(self):
-        return None
-
-    def evaluate(self):
-        return None
 
     def sentiment_score(self,file):
         af = Afinn()
 
         # compute sentiment scores (polarity) and labels
-        sentiment_scores = [af.score(file)]
+        sentences = file.splitlines()
+        sentiment_total_score = [af.score(file)]
+        sentiment_scores = [af.score(sent) for sent in sentences]
         sentiment_category = ['positive' if score > 0
                               else 'negative' if score < 0
                                 else 'neutral'
                                  for score in sentiment_scores]
-        print(sentiment_scores)
-        print(sentiment_category)
+
+        sentiment_total_category = ['positive' if score > 0
+                              else 'negative' if score < 0
+                              else 'neutral'
+                              for score in sentiment_total_score]
+
+
+        print("Individual sentences sentiment score:", sentiment_scores)
+        print("Sentence's Sentiment Category:", sentiment_category)
+        print("Total text sentiment score:", sentiment_total_score)
+        print("Total text Sentiment Category:", sentiment_total_category)
 
 
 if __name__ == '__main__':
@@ -374,9 +349,16 @@ if __name__ == '__main__':
     fc.amp_audio('Fear Audio Files/OAF_pain_fear.wav')
     print("Neutral audio example: ")
     fc.amp_audio('Neutral Audio Files/OAF_pain_neutral.wav')
+    print("\nSpeech to Text:")
+    print("-----------------")
     fc.speech_to_text('Fear Audio Files/OAF_pain_fear.wav')
+    print("")
     fc.compare_amplitudes(fear_audio_files, neutral_audio_files)
-    fc.compare_inflection(fear_audio_files,neutral_audio_files)
+    fc.compare_inflection(fear_audio_files, neutral_audio_files)
     fc.compare_pitch(fear_audio_files, neutral_audio_files)
-    fc.sentiment_score("fear text: ",open('fear_example.txt', 'r').read())
-    fc.sentiment_score("neutral text: ", open('neutral_example.txt', 'r').read())
+    print("Fear text sentiment analysis: ")
+    print("-----------------------------")
+    fc.sentiment_score(open('fear_example.txt', 'r').read())
+    print("\nNeutral text sentiment analysis: ")
+    print("--------------------------------")
+    fc.sentiment_score(open('neutral_example.txt', 'r').read())
