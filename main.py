@@ -7,6 +7,7 @@ from nltk.stem import PorterStemmer
 from nltk.tag.perceptron import PerceptronTagger
 import librosa
 import librosa.display
+from afinn import Afinn
 import numpy as np
 import re
 import matplotlib.pyplot as plt
@@ -355,6 +356,18 @@ class FearClassifier:
     def evaluate(self):
         return None
 
+    def sentiment_score(self,file):
+        af = Afinn()
+
+        # compute sentiment scores (polarity) and labels
+        sentiment_scores = [af.score(file)]
+        sentiment_category = ['positive' if score > 0
+                              else 'negative' if score < 0
+                                else 'neutral'
+                                 for score in sentiment_scores]
+        print(sentiment_scores)
+        print(sentiment_category)
+
 
 if __name__ == '__main__':
     fear = open('fear_example.txt', 'r').read().splitlines()
@@ -369,10 +382,6 @@ if __name__ == '__main__':
     # fc.speech_to_text([coraline audio file])
     # test = open('script.txt', 'r').read().splitlines()
     # fc.meter(test)
-
-
-
-
 
     fc.meter(test)
     fc.find_POS(test)
