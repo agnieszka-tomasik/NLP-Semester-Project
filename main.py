@@ -4,6 +4,8 @@ import pandas as pd
 from nltk.stem import PorterStemmer
 from nltk.tag.perceptron import PerceptronTagger
 import librosa
+import scipy.stats as stats
+import glob as dir_iterator
 from afinn import Afinn
 import librosa.display
 import numpy as np
@@ -192,27 +194,31 @@ class FearClassifier:
 
         # get total amplitudes
         for amplitude in list_amplitudes_fear:
-            fear_total += fear_total + amplitude
+            fear_total += amplitude
 
         for amplitude in list_amplitudes_neutral:
-            neutral_total += neutral_total + amplitude
+            neutral_total += amplitude
 
         # get averages
-        fear_avg = fear_total / len(list_amplitudes_fear)
-        neutral_avg = neutral_total/ len(list_amplitudes_neutral)
+        fear_avg = int(fear_total / len(list_amplitudes_fear))
+        neutral_avg = int(neutral_total/ len(list_amplitudes_neutral))
 
 
         # tabulate data via Panda and print to visualize table
-        df_fear = pd.DataFrame(list_amplitudes_fear, columns=['Fear'], index=['Amplitude 1', 'Amplitude 2'])
-        df_neutral = pd.DataFrame(list_amplitudes_neutral, columns=['Neutral'], index=['Amplitude 1', 'Amplitude 2'])
+        df_fear = pd.DataFrame(list_amplitudes_fear, columns=['Fear'])
+        df_neutral = pd.DataFrame(list_amplitudes_neutral, columns=['Neutral'])
         df = pd.concat([df_fear, df_neutral], axis=1)
         print(df)
+
+        fvalue, pvalue = stats.f_oneway(df_fear, df_neutral)
+        print("ANOVA statistical analysis F-value: ", fvalue)
+        print("ANOVA statistical analysis p-value: ", pvalue)
 
         print("Fear Avg Amplitude: ", fear_avg)
         print("Neutral Avg Amplitude: ", neutral_avg)
         print("")
 
-        # compare results
+        # compare results under a 5% significance level
         if fear_avg < neutral_avg:
             print("Fear is proven to have a smaller amplitude based on the averages as fear:", fear_avg, "< neutral:", neutral_avg)
             return True
@@ -236,26 +242,30 @@ class FearClassifier:
 
         # get total freq
         for freq in list_freq_fear:
-            fear_total += fear_total + freq
+            fear_total += freq
 
         for freq in list_freq_neutral:
-            neutral_total += neutral_total + freq
+            neutral_total += freq
 
         # get averages
-        fear_avg = fear_total / len(list_freq_fear)
-        neutral_avg = neutral_total/ len(list_freq_neutral)
+        fear_avg = int(fear_total / len(list_freq_fear))
+        neutral_avg = int(neutral_total/ len(list_freq_neutral))
 
         # tabulate data via Panda and print to visualize table
-        df_fear = pd.DataFrame(list_freq_fear, columns=['Fear'], index=['Freq 1', 'Freq 2'])
-        df_neutral = pd.DataFrame(list_freq_neutral, columns=['Neutral'], index=['Freq 1', 'Freq 2'])
+        df_fear = pd.DataFrame(list_freq_fear, columns=['Fear'])
+        df_neutral = pd.DataFrame(list_freq_neutral, columns=['Neutral'])
         df = pd.concat([df_fear, df_neutral], axis=1)
         print(df)
+
+        fvalue, pvalue = stats.f_oneway(df_fear, df_neutral)
+        print("ANOVA statistical analysis F-value: ", fvalue)
+        print("ANOVA statistical analysis p-value: ", pvalue)
 
         print("Fear Avg Freq: ", fear_avg)
         print("Neutral Avg Freq: ", neutral_avg)
         print("")
 
-        # compare results
+        # compare results under a 5% significance level
         if fear_avg < neutral_avg:
             print("Fear is proven to have a smaller frequency based on the averages as fear:", fear_avg, "< neutral:", neutral_avg, "\n")
             return True
@@ -279,26 +289,30 @@ class FearClassifier:
 
         # get total amplitudes
         for freq in list_pitch_fear:
-            fear_total += fear_total + freq
+            fear_total += freq
 
         for freq in list_pitch_neutral:
-            neutral_total += neutral_total + freq
+            neutral_total += freq
 
         # get averages
-        fear_avg = fear_total / len(list_pitch_fear)
-        neutral_avg = neutral_total / len(list_pitch_neutral)
+        fear_avg = int(fear_total / len(list_pitch_fear))
+        neutral_avg = int(neutral_total / len(list_pitch_neutral))
 
         # tabulate data via Panda and print to visualize table
-        df_fear = pd.DataFrame(list_pitch_fear, columns=['Fear'], index=['Pitch 1', 'Pitch 2'])
-        df_neutral = pd.DataFrame(list_pitch_neutral, columns=['Neutral'], index=['Pitch 1', 'Pitch 2'])
+        df_fear = pd.DataFrame(list_pitch_fear, columns=['Fear'])
+        df_neutral = pd.DataFrame(list_pitch_neutral, columns=['Neutral'])
         df = pd.concat([df_fear, df_neutral], axis=1)
         print(df)
+
+        fvalue, pvalue = stats.f_oneway(df_fear, df_neutral)
+        print("ANOVA statistical analysis F-value: ", fvalue)
+        print("ANOVA statistical analysis p-value: ", pvalue)
 
         print("Fear Avg Pitch: ", fear_avg)
         print("Neutral Avg Pitch: ", neutral_avg)
         print("")
 
-        # compare results
+        # compare results under a 5% significance level
         if fear_avg > neutral_avg:
             print("Fear is proven to have a larger pitch based on the averages as fear:", fear_avg, "> neutral:",
                   neutral_avg, "\n")
@@ -343,12 +357,14 @@ class FearClassifier:
                                  for score in sentiment_scores]
         print(sentiment_scores)
         print(sentiment_category)
+
+
 if __name__ == '__main__':
     fear = open('fear_example.txt', 'r').read().splitlines()
     neutral = open('neutral_example.txt', 'r').read().splitlines()
     test = open('test.txt', 'r').read().splitlines()
-    fear_audio_files = ["Fear Audio Files/OAF_pain_fear.wav", "Fear Audio Files/OAF_witch_fear.wav"]
-    neutral_audio_files = ["Neutral Audio Files/OAF_pain_neutral.wav", "Neutral Audio Files/OAF_witch_neutral.wav"]
+    fear_audio_files = dir_iterator.glob("./Fear Audio Files/*.wav")
+    neutral_audio_files = dir_iterator.glob("./Neutral Audio Files/*.wav")
 
     fc = FearClassifier()
     fc.train(fear, neutral)
