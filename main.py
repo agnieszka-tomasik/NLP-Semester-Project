@@ -134,7 +134,7 @@ class FearClassifier:
             tagger.tag(words)
 
     def remove_stop_words(self):  # clears up space in database and improves processing time
-        # need to include in Read.Me if we keep this
+
         stopwords = set(nltk.corpus.stopwords.words('english'))
         stopwords.remove("the")
         stopwords.remove("a")
@@ -332,13 +332,11 @@ class FearClassifier:
     def evaluate(self):
         return None
 
-    def sentiment_score(self, file):
+    def sentiment_score(self,file):
         af = Afinn()
 
         # compute sentiment scores (polarity) and labels
-        sentences = file.splitlines()
-       # sentiment_scores = af.score(file)
-        sentiment_scores = [af.score(sent) for sent in sentences]
+        sentiment_scores = [af.score(file)]
         sentiment_category = ['positive' if score > 0
                               else 'negative' if score < 0
                                 else 'neutral'
@@ -364,7 +362,5 @@ if __name__ == '__main__':
     fc.compare_amplitudes(fear_audio_files, neutral_audio_files)
     fc.compare_inflection(fear_audio_files,neutral_audio_files)
     fc.compare_pitch(fear_audio_files, neutral_audio_files)
-    print("fear text sentiment score: ")
-    fc.sentiment_score(open('fear_example.txt', 'r').read())
-    print("neutral text sentiment score: ")
-    fc.sentiment_score(open('neutral_example.txt', 'r').read())
+    fc.sentiment_score("fear text: ",open('fear_example.txt', 'r').read())
+    fc.sentiment_score("neutral text: ", open('neutral_example.txt', 'r').read())
